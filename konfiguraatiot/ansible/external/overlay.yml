@@ -1,0 +1,119 @@
+- name: Query for directly connected neighbors
+  gather_facts: false
+  hosts: bgws,dc_core
+  tasks:
+    - name: Run show cdp neighbors
+      cisco.nxos.nxos_command:
+        commands:
+          - show cdp neighbors detail | json
+      register:
+        neighbors: _task.result.stdout[0] | community.general.json_query("TABLE_cdp_neighbor_detail_info.ROW_cdp_neighbor_detail_info[?intf_id!='mgmt0']")
+ 
+- name: Configure BGP process for BGWs
+  gather_facts: false
+  hosts: bgws
+  tasks:
+    - name: Configure eBGP overlay peers
+      cisco.nxos.nxos_bgp_global:
+        config:
+          as_number: "{{ asn }}"
+          router_id: "{{ lo0.split('/')[0] }}"
+          log_neighbor_changes: true
+          neighbors:
+            - neighbor_address: "{{  hostvars[item.sysname.split('-')[-1]]['lo0'] }}"
+              remote_as: "{{ hostvars[item.sysname.split('-')[-1]]['asn'] }}"
+              update_source: loopback0
+              peer_type: "fabric-external"
+              ebgp_multihop: 2
+      loop: "{{ neighbors }}"
+      loop_control:
+        label: "{{ item.sysname }}"
+      when: "'spine' not in item.sysname"
+
+    - name: Configure eBGP overlay peer EVPN AF
+      cisco.nxos.nxos_bgp_neighbor_address_family:
+        config:
+          as_number: "{{ asn }}"
+          neighbors:
+            - neighbor_address: "{{ hostvars[item.sysname.split('-')[-1]]['lo0'] }}"
+              address_family:
+                - afi: "l2vpn"
+                  safi: "evpn"
+                  rewrite_evpn_rt_asn: true
+                  send_community:
+                    both: true
+      loop: "{{ neighbors }}"
+      loop_control:
+        label: "{{ item.sysname }}"
+      when: "'spine' not in item.sysname"        
+
+- name: Configure BGP process for COREs
+  gather_facts: false
+  hosts: dc_core
+  tasks:
+    - name: Configure route-map
+      cisco.nxos.nxos_route_maps:
+        config:
+          - route_map: UNCHANGED
+            entries:
+              - sequence: 10
+                action: permit
+                set:
+                  ip:
+                    next_hop:
+                      unchanged: true
+
+    - name: Configure eBGP EVPN AF
+      cisco.nxos.nxos_bgp_address_family:
+        config:
+          as_number: "{{ asn }}"
+          address_family:
+            - afi: l2vpn
+              safi: evpn
+              retain:
+                route_target:
+                  retain_all: true
+
+    - name: Configure eBGP overlay peers
+      cisco.nxos.nxos_bgp_global:
+        config:
+          as_number: "{{ asn }}"
+          router_id: "{{ lo0.split('/')[0] }}"
+          log_neighbor_changes: true
+          neighbors:
+            - neighbor_address: "{{  hostvars[item.sysname.split('-')[-1]]['lo0'] }}"
+              remote_as: "{{ hostvars[item.sysname.split('-')[-1]]['asn'] }}"
+              update_source: loopback0
+              ebgp_multihop: 2
+      loop: "{{ neighbors }}"
+      loop_control:
+        label: "{{ item.sysname }}"
+
+    - name: Configure eBGP overlay peer EVPN AF
+      cisco.nxos.nxos_bgp_neighbor_address_family:
+        config:
+          as_number: "{{ asn }}"
+          neighbors:
+            - neighbor_address: "{{ hostvars[item.sysname.split('-')[-1]]['lo0'] }}"
+              address_family:
+                - afi: "l2vpn"
+                  safi: "evpn"
+                  rewrite_evpn_rt_asn: true
+                  route_map:
+                    outbound: UNCHANGED
+                  send_community:
+                    both: true
+      loop: "{{ neighbors }}"
+      loop_control:
+        label: "{{ item.sysname }}"
+
+- name: Create checkpoint
+  gather_facts: false
+  hosts: bgws,dc_core
+  tasks:
+    - name: Create checkpoint external-overlay
+      cisco.nxos.nxos_command:
+        commands:
+          - "configure terminal"
+          - "checkpoint external-overlay"
+          - "end"
