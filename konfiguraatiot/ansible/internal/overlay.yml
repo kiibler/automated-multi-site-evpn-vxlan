@@ -1,0 +1,245 @@
+- name: Create VLANs and VRFs
+  gather_facts: false
+  hosts: nves
+  tasks:
+    - name: Ensure needed features are enabled
+      cisco.nxos.nxos_feature:
+        feature: "{{ item }}"
+      loop:
+        - vn-segment-vlan-based
+        - interface-vlan
+
+    - name: Create VLANs
+      cisco.nxos.nxos_vlans:
+        config:
+          - vlan_id: "{{ item.id }}"
+            name: "{{ item.name }}"
+            mapped_vni: "{{ item.vni }}"
+      loop: "{{ vlans }}"
+      loop_control:
+        label: "{{ item.name }}"
+
+    - name: Create VRFs
+      cisco.nxos.nxos_vrf_global:
+        config:
+          vrfs:
+            - name: "TENANT-{{ item.tenant }}"
+              rd: auto
+              vni:
+                vni_number: "{{ item.id}}"
+      loop: "{{ vrfs }}"
+      loop_control:
+        label: "TENANT-{{ item.tenant }}"
+
+- name: Configure RD and RTs for VNIs
+  gather_facts: false
+  hosts: nves
+  tasks:
+    - name: Assign RD and RTs for L2VNIs
+      cisco.nxos.nxos_evpn_vni:
+        vni: "{{ item.vni }}"
+        route_distinguisher: auto
+        route_target_both: auto
+      loop: "{{ vlans }}"
+      loop_control:
+        label: "{{ item.vni }}"
+      when: item.agw is not none
+
+    - name: Assign RTs for L3VNIs
+      cisco.nxos.nxos_vrf_af:
+        vrf: "TENANT-{{ item.tenant }}"
+        afi: ipv4
+        route_target_both_auto_evpn: true
+        route_targets:
+          - rt: "auto"
+            direction: both
+      loop: "{{ vrfs }}"
+      loop_control:
+        label: "TENANT-{{ item.tenant }}"
+
+- name: Configure non customer facing L3VNI SVIs
+  gather_facts: false
+  hosts: nves
+  tasks:
+    - name: Assign L3VNI SVIs to VRFs
+      cisco.nxos.nxos_vrf_interfaces:
+        config:
+          - name: "vlan {{ item.id }}"
+            vrf_name: "TENANT-{{ item.tenant }}"
+      loop: "{{ vlans }}"
+      loop_control:
+        label: "int vlan{{ item.id }}"
+      when: item.agw is none
+
+    - name: Configure L3VNI SVI settings
+      cisco.nxos.nxos_interfaces:
+        config:
+          - name: "vlan {{ item.id }}"
+            enabled: true
+            ip_forward: true
+      loop: "{{ vlans }}"
+      loop_control:
+        label: "int vlan{{ item.id }}"
+      when: item.agw is none
+
+- name: Configure customer facing L3VNI SVIs
+  gather_facts: false
+  hosts: vteps
+  tasks:
+    - name: Assign L3VNI SVIs to VRFs
+      cisco.nxos.nxos_vrf_interfaces:
+        config:
+          - name: "vlan {{ item.id }}"
+            vrf_name: "TENANT-{{ item.tenant }}"
+      loop: "{{ vlans }}"
+      loop_control:
+        label: "int vlan{{ item.id }}"
+      when: item.agw is not none
+
+    - name: Configure IPv4 address
+      cisco.nxos.nxos_l3_interfaces:
+        config:
+          - name: "vlan {{ item.id }}"
+            redirects: false
+            ipv4:
+              - address: "{{ item.agw }}"
+      loop: "{{ vlans }}"
+      loop_control:
+        label: "int vlan{{ item.id }}"
+      when: item.agw is not none
+
+    - name: Configure Anycast SVI MAC
+      cisco.nxos.nxos_overlay_global:
+        anycast_gateway_mac: 0045.0b01.0101
+
+    - name: Configure Anycast SVI settings
+      cisco.nxos.nxos_interfaces:
+        config:
+          - name: "vlan {{ item.id }}"
+            fabric_forwarding_anycast_gateway: true
+            enabled: true
+      loop: "{{ vlans }}"
+      loop_control:
+        label: "int vlan{{ item.id }}"
+      when: item.agw is not none
+
+- name: Configure NVE interface
+  gather_facts: false
+  hosts: nves
+  tasks:
+    - name: Configure NVE settings
+      cisco.nxos.nxos_vxlan_vtep:
+        interface: nve1
+        host_reachability: true
+        source_interface: loopback1
+        shutdown: false
+
+    - name: Configure L2VNI replication
+      cisco.nxos.nxos_vxlan_vtep_vni:
+        interface: nve1
+        vni: "{{ item.vni }}"
+        ingress_replication: "bgp"
+      loop: "{{ vlans }}"
+      loop_control:
+        label: "{{ item.vni }}"
+      when: item.agw is not none
+
+    - name: Configure L3VNI replication
+      cisco.nxos.nxos_vxlan_vtep_vni:
+        interface: nve1
+        vni: "{{ item.vni }}"
+        assoc_vrf: true
+      loop: "{{ vlans }}"
+      loop_control:
+        label: "{{ item.vni }}"
+      when: item.agw is none
+
+    - name: Configure Multi-site GW interface for BGWs
+      cisco.nxos.nxos_vxlan_vtep:
+        interface: nve1
+        multisite_border_gateway_interface: loopback100
+      when: inventory_hostname in groups["bgws"]
+
+    - name: Configure L2VNI Multi-site replication for BGWs 
+      cisco.nxos.nxos_vxlan_vtep_vni:
+        interface: nve1
+        vni: "{{ item.vni }}"
+        multisite_ingress_replication: enable
+      loop: "{{ vlans }}"
+      loop_control:
+        label: "{{ item.vni }}"
+      when: item.agw is not none and inventory_hostname in groups['bgws']
+
+- name: Configure BGP process
+  gather_facts: false
+  hosts: nves,spines
+  tasks:
+    - name: Configure iBGP RR peer template
+      cisco.nxos.nxos_bgp_templates:
+        config:
+          as_number: "{{ asn }}"
+          neighbor:
+            - name: SPINE-RR
+              remote_as: "{{ asn }}"
+              update_source: loopback0
+              address_family:
+                - afi: l2vpn
+                  safi: evpn
+                  send_community: both
+      when: inventory_hostname not in groups["spines"]
+
+    - name: Configure iBGP RR Client peer template
+      cisco.nxos.nxos_bgp_templates:
+        config:
+          as_number: "{{ asn }}"
+          neighbor:
+            - name: LEAF-VTEP
+              remote_as: "{{ asn }}"
+              update_source: loopback0
+              address_family:
+                - afi: l2vpn
+                  safi: evpn
+                  send_community: both
+                  route_reflector_client: true
+      when: inventory_hostname in groups["spines"]
+
+    - name: Query for site-internal neighbors via show ip ospf neighbors
+      cisco.nxos.nxos_command:
+        commands:
+          - show ip ospf neighbors | awk 'NR > 3 {print $1}'
+      register:
+        neighbors: _task.result.stdout[0].split('\n')
+
+    - name: Configure iBGP overlay peers for NVEs
+      cisco.nxos.nxos_bgp_global:
+        config:
+          as_number: "{{ asn }}"
+          router_id: "{{ lo0.split('/')[0] }}"
+          log_neighbor_changes: true
+          neighbors:
+            - neighbor_address: "{{ item }}"
+              inherit:
+                peer: SPINE-RR
+      loop: "{{ neighbors }}"
+      when: inventory_hostname in groups["nves"]
+
+    - name: Configure iBGP peers for SPINEs 
+      cisco.nxos.nxos_bgp_global:
+        config:
+          as_number: "{{ asn }}"
+          router_id: "{{ lo0.split('/')[0] }}"
+          log_neighbor_changes: true
+          neighbors:
+            - neighbor_address: "{{ item }}"
+              inherit:
+                peer: LEAF-VTEP
+      loop: "{{ neighbors }}"
+      when: inventory_hostname in groups["spines"]
+
+- name: Create checkpoint
+  gather_facts: false
+  hosts: nves,spines
+  tasks:
+    - name: Create checkpoint internal-overlay
+      cisco.nxos.nxos_rollback:
+        checkpoint_file: internal-overlay
