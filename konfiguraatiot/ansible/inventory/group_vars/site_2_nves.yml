@@ -1,0 +1,37 @@
+vlans:
+  - id: 10
+    name: WEB-A-L2VNI
+    tenant: A
+    vni: 10010
+    agw: 172.16.0.1/24
+  - id: 11
+    name: APP-A-L2VNI
+    tenant: A
+    vni: 10011
+    agw: 172.16.1.1/24
+  - id: 100
+    name: TENANT-A-L3VNI
+    tenant: A
+    vni: 10100
+    agw: null
+  - id: 20
+    name: WEB-B-L2VNI
+    tenant: B
+    vni: 10020
+    agw: 172.16.0.1/24
+  - id: 21
+    name: DB-B-L2VNI
+    tenant: B
+    vni: 10021
+    agw: 172.16.1.1/24
+  - id: 200
+    name: TENANT-B-L3VNI
+    tenant: B
+    vni: 10200
+    agw: null
+
+vrfs:
+  - id: 10100
+    tenant: A
+  - id: 10200
+    tenant: B
