@@ -9,7 +9,30 @@ Alueiden internal-verkot on rakennettu hyödyntäen Spine Leaf -topologiaa. Niit
 
 ## Toteutuksen automatisointi
 
-Verkon toteutus on automatisoitu Ansiblen avulla. Laitteiden käyttöönotto ja konfigurointi on jaettu viiteen osa-alueeseen:
+Verkon toteutus on automatisoitu Ansiblen avulla. Toteutuksen automatisointi suunniteltiin siten, että laitteille määriteltiin ID ja rooli. Roolin perusteella laitteet liitettiin ryhmiin: `vteps`, `spines`, `bgws`, `nves` ja `dc_core`.
+
+Laitekohtaiset ID:t jaettiin seuraavan taulukon mukaan:
+
+| Rooli | Device-Id |
+| :--- | :--- |
+| SERVER |  1-99 |
+| VTEP | 100-129 |
+| SPINE | 130-159 |
+| BGW | 160-189 |
+| CORE | 190-219 |
+| Reserved | 220-254 |
+
+Lisäksi laitteet jaettiin datakeskus- ja aluekohtaisiin ryhmiin niiden sijainnin perusteella. Näiden tietojen perusteella laitteille määriteltiin tarvittavat IPv4 osoitteet seuraavan taulukon mukaan:
+
+| Use | Prefix | 2nd Octet | 3rd Octet | 4th Octet |
+| :--- | :--- | :--- | :--- | :--- |
+| MGMT | `192.168.0.0/16` | - | DC-Id + Site-Id | Device-Id |
+| RID | `10.0.0.0/8` | 0 | DC-Id + Site-Id | Device-Id |
+| VTEP PIP | `10.0.0.0/8` | 1 | DC-Id + Site-Id | Device-Id |
+| Multi-site VIP | `10.0.0.0/8` | 100 | DC-Id + Site-Id | 1 |
+| Site-external links | `10.0.0.0/8` | BGW Device-Id | Core Device-Id | 1 (BGWs) / 2 (COREs)
+
+Laitteiden käyttöönotto ja konfigurointi on jaettu viiteen osa-alueeseen:
 
 1. Alustavat asetukset. Tässä vaiheessa laitteille konfiguroidaan hostnimet, tarvittavat asetukset ja IPv4 osoitteet. Lisäksi tarvittavat prosessit, kuten **BGP**, laitetaan päälle.
 2. Internal-underlay. Tässä vaiheessa laitteille konfiguroidaan alueiden rajojen sisällä toimiva **OSPFv2** underlay-verkko.
@@ -17,4 +40,4 @@ Verkon toteutus on automatisoitu Ansiblen avulla. Laitteiden käyttöönotto ja 
 4. External-underlay. Tässä vaiheessa laitteille konfiguroidaan alueiden yhdistämiseen tarvittava **eBGP IPv4** underlay-verkko.
 5. External-overlay. Tässä vaiheessa laitteille konfiguroidaan alueiden yhdistämiseen ja asiakasverkkojen jatkamiseen tarvittava **eBGP EVPN** overlay-verkko.
 
-Laitteet konfiguroitiin datakeskuksen erillisen hallintaverkon (`MGMT`) kautta.
+Laitteet konfiguroitiin datakeskuksen erillisen hallintaverkon (`MGMT`) ja laitteiden hallintarajapinnan (`mgmt0`) kautta.
