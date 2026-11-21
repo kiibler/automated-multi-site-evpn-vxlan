@@ -1,0 +1,172 @@
+- name: Configure initial system settings
+  gather_facts: false
+  hosts: datacenter
+  tasks:
+    - name: Lower CDP refresh timer
+      cisco.nxos.nxos_command:
+        commands:
+          - "configure terminal"
+          - "cdp timer 5"
+          - "end"
+
+    - name: Configure device hostame
+      cisco.nxos.nxos_hostname:
+        config:
+          hostname: "dc{{ dc_id }}-site{{ site_id }}-{{ role ~ device_id }}"
+
+    - name: Ensure common needed features are enabled
+      cisco.nxos.nxos_feature:
+        feature: "{{ item }}"
+      loop:
+        - nv overlay
+        - bgp
+      loop_control:
+        label: "{{ item }}"
+
+    - name: Start EVPN
+      cisco.nxos.nxos_evpn_global:
+        nv_overlay_evpn: true
+
+- name: Query for directly connected neighbors
+  gather_facts: false
+  hosts: datacenter
+  tasks:
+    - name: Run show cdp neighbors
+      cisco.nxos.nxos_command:
+        commands:
+          - show cdp neighbors detail | json
+      register:
+        neighbors: _task.result.stdout[0] | community.general.json_query("TABLE_cdp_neighbor_detail_info.ROW_cdp_neighbor_detail_info[?intf_id!='mgmt0']")
+
+    - name: Set CDP refresh timer to the default value
+      cisco.nxos.nxos_command:
+        commands:
+          - "configure terminal"
+          - "cdp timer 60"
+          - "end"
+
+- name: Configure common interface settings
+  gather_facts: false
+  hosts: datacenter
+  tasks:
+    - name: Configure interfaces as L3
+      cisco.nxos.nxos_interfaces:
+        config:
+          - name: "{{ item.intf_id }}"
+            mode: "layer3"
+      loop: "{{ neighbors }}"
+      loop_control:
+        label: "{{ item.intf_id }}"
+
+    - name: Configure desc, mac, mtu and state
+      cisco.nxos.nxos_interfaces:
+        config:
+          - name: "{{ item.intf_id }}"
+            description: "Link to {{ item.sysname }}"
+            mac_address: "{{ item.local_intf_mac }}"
+            enabled: true
+            mtu: 1550
+      loop: "{{ neighbors }}"
+      loop_control:
+        label: "{{ item.intf_id }}"
+
+- name: Configure site-internal interface addressing
+  gather_facts: false
+  hosts: nves,spines
+  tasks:
+    - name: Configure IP unnumbered
+      cisco.nxos.nxos_command:
+        commands:
+          - "configure terminal"
+          - "interface {{ item.intf_id }}"
+          - "medium p2p"
+          - "ip unnumbered loopback0"
+          - "end"
+      loop: "{{ neighbors }}"
+      loop_control:
+        label: "{{ item.intf_id }}"
+      when: "'core' not in item.sysname"
+
+- name: Configure site-external transit networks
+  gather_facts: false
+  hosts: bgws,dc_core
+  tasks:
+    - name: Configure IPv4 address for BGWs
+      cisco.nxos.nxos_command:
+        commands:
+          - "configure terminal"
+          - "interface {{ item.intf_id }}"
+          - "ip add {{ '10.' ~  device_id ~ '.' ~ item.v4mgmtaddr.split('.')[-1] ~ '.1/30' }} tag {{ dc_id ~ site_id }}"
+          - "end"
+      loop: "{{ neighbors }}"
+      loop_control:
+        label: "{{ item.intf_id }}"
+      when: "inventory_hostname in groups ['bgws'] and 'spine' not in item.sysname"
+
+    - name: Configure IPv4 address for COREs
+      cisco.nxos.nxos_command:
+        commands:
+          - "configure terminal"
+          - "interface {{ item.intf_id }}"
+          - "ip add {{ '10.' ~ item.v4mgmtaddr.split('.')[-1] ~ '.' ~ device_id ~ '.2/30' }} tag {{ dc_id ~ site_id }}"
+          - "end"
+      loop: "{{ neighbors }}"
+      loop_control:
+        label: "{{ item.intf_id }}"
+      when: inventory_hostname in groups ['dc_core']
+
+- name: Configure loopback interfaces
+  gather_facts: false
+  hosts: datacenter
+  tasks:
+    - name: Configure loopback description and state
+      cisco.nxos.nxos_interfaces:
+        config:
+          - name: "{{ item }}"
+            description: "{{ lookup('vars', item ~ '_desc') }}"
+            enabled: true
+      loop:
+        - lo0
+        - lo1
+        - lo100
+      when: lookup('vars', item) is not none
+
+    - name: Configure loopback IPv4 addresses
+      cisco.nxos.nxos_l3_interfaces:
+        config:
+          - name: "{{ item }}"
+            ipv4:
+              - address: "{{ lookup('vars', item) }}"
+      loop:
+        - lo0
+        - lo1
+        - lo100
+      when: lookup('vars', item) is not none
+
+- name: Configure loopback settings for BGWs and COREs
+  gather_facts: false
+  hosts: bgws,dc_core
+  tasks:
+    - name: Configure interface tag
+      cisco.nxos.nxos_command:
+        commands:
+          - "configure terminal"
+          - "interface {{ item }}"
+          - "ip address {{ lookup('vars', item) }} tag {{ dc_id ~ site_id }}"
+          - "end"
+      loop:
+        - lo0
+        - lo1
+        - lo100
+      when: lookup('vars', item) is not none
+
+- name: Create checkpoint
+  gather_facts: false
+  hosts: datacenter
+  tasks:
+    - name: Create checkpoint initial
+      cisco.nxos.nxos_command:
+        commands:
+          - "configure terminal"
+          - "checkpoint initial"
+          - "end"
