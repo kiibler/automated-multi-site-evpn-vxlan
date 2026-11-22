@@ -9,8 +9,9 @@ Alueiden internal-verkot on rakennettu hyödyntäen Spine Leaf -topologiaa. Niit
 
 ## Toteutuksen automatisointi
 
-Verkon toteutus on automatisoitu Ansiblen avulla. Toteutuksen automatisointi suunniteltiin siten, että laitteille määriteltiin ID ja rooli. Roolin perusteella laitteet liitettiin ryhmiin: `vteps`, `spines`, `bgws`, `nves` ja `dc_core`.
-
+Verkon toteutus on automatisoitu Ansiblen avulla. Toteutuksen automatisointi suunniteltiin siten, että laitteille määriteltiin ID ja rooli. Roolin perusteella laitteet jaettiin ryhmiin: `vteps`, `spines`, `bgws`, `nves` ja `dc_core`. Lisäksi laitteet jaettiin ryhmiin: `dc1`, `site1_nves` ja `site2_nves` niiden sijainnin perusteella. Laitekohtaisen Id:n, roolin sekä datakeskus- ja aluekohtaisten muuttujien avulla laitteille määriteltiin dynaamisesti tarvittavat muuttujat, kuten: `ASN`, `hostname`
+ ja IPv4 osoitteet.
+ 
 Laitekohtaiset ID:t jaettiin seuraavan taulukon mukaan:
 
 | Rooli | Device-Id |
@@ -22,7 +23,7 @@ Laitekohtaiset ID:t jaettiin seuraavan taulukon mukaan:
 | CORE | 190-219 |
 | Reserved | 220-254 |
 
-Lisäksi laitteet jaettiin datakeskus- ja aluekohtaisiin ryhmiin niiden sijainnin perusteella. Näiden tietojen perusteella laitteille määriteltiin tarvittavat IPv4 osoitteet seuraavan taulukon mukaan:
+IPv4 osoitteet muodostettiin seuraavan taulukon mukaan:
 
 | Use | Prefix | 2nd Octet | 3rd Octet | 4th Octet |
 | :--- | :--- | :--- | :--- | :--- |
