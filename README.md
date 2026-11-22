@@ -42,3 +42,7 @@ Laitteiden käyttöönotto ja konfigurointi on jaettu viiteen osa-alueeseen:
 5. External-overlay. Tässä vaiheessa laitteille konfiguroidaan alueiden yhdistämiseen ja asiakasverkkojen jatkamiseen tarvittava **eBGP EVPN** overlay-verkko.
 
 Laitteet konfiguroitiin datakeskuksen erillisen hallintaverkon (`MGMT`) ja laitteiden hallintarajapinnan (`mgmt0`) kautta.
+
+## Internal underlay ja overlay
+
+Alueiden sisäinen underlay-verkko toteutettiin **OSPFv2**-protokollalla ja sisäinen overlay-verkko toteutettiin **iBGP**-protokollalla sekä **Route Reflector** menetelmää hyödyntäen. Asiakasverkkojen segmentointi ja eristys toteutettiin sitomalla L2VNI-tunnisteet paikallisiin VLAN-tunnisteisiin ja L3VNI-tunniste paikallisiin reitityskonteksteihin eli VRF:iin. Suunnitelma asiakasverkkojen segmentointiin ja aliverkotukseen löytyy aiemmasta BGP EVPN VXLAN -projektini [kuvauksesta](https://github.com/kiibler/cisco-nexus-bgp-evpn-vxlan/tree/main#vlan-segmentointi-l2vni-ja-l3vni).
