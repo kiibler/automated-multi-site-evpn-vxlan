@@ -46,3 +46,9 @@ Laitteet konfiguroitiin datakeskuksen erillisen hallintaverkon (`MGMT`) ja laitt
 ## Internal underlay ja overlay
 
 Alueiden sisäinen underlay-verkko toteutettiin **OSPFv2**-protokollalla ja sisäinen overlay-verkko toteutettiin **iBGP**-protokollalla sekä **Route Reflector** menetelmää hyödyntäen. Asiakasverkkojen segmentointi ja eristys toteutettiin sitomalla L2VNI-tunnisteet paikallisiin VLAN-tunnisteisiin ja L3VNI-tunniste paikallisiin reitityskonteksteihin eli VRF:iin. Suunnitelma asiakasverkkojen segmentointiin ja aliverkotukseen löytyy aiemmasta BGP EVPN VXLAN -projektini [kuvauksesta](https://github.com/kiibler/cisco-nexus-bgp-evpn-vxlan/tree/main#vlan-segmentointi-l2vni-ja-l3vni).
+
+## External underlay
+
+External underlay on Multi-site EVPN VXLAN -konesaliverkon osa-alue, joka yhdistää alueiden reunoilla toimivat Border Gateway -laitteet toisiinsa. Tässä toteutuksessa external underlay -verkko rakennettiin datakeskuksen sisällä toimivan runkoverkon, eli Super Spine -tason, päälle. Tämä malli mahdollistaa sen, että datakeskuksen sisällä toimiva yksi suuri VXLAN-verkko voidaan segmentoida pienempiin alueisiin. Pienemmät alueet parantavat vikasietoisuutta rajaamalla mahdollisten vikatilanteiden laajuutta.
+
+eBGP-underlay-verkon tehtävä on mainostaa reitit Border Gateway -laitteiden `loopback0`, `loopback1` ja `loopback100` rajapintoihin. Loopback0-rajapintaa käytetään external-overlay-verkon naapuruussuhteiden muodostamiseen alueiden Border Gateway -laitteiden välillä. Loopback1-rajapintaa käytetään VXLAN-liikenteen tunnelointirajapinnan (`NVE`) osoitteena. Loopack100-rajapintaa käytetään asiakasverkon liikenteen reitittämiseen alueelta toiselle.
