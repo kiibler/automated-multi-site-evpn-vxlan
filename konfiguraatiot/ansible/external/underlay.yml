@@ -70,6 +70,17 @@
         label: "{{ item.v4addr }}"
       when: "'spine' not in item.sysname"
 
+    - name: Configure path settings for BGWs
+      cisco.nxos.nxos_bgp_address_family:
+        config:
+          as_number: "{{ asn }}"
+          address_family:
+            - afi: ipv4
+              safi: unicast
+              maximum_paths:
+                parallel_paths: "{{ groups['dc_core'] | length }}"
+      when: inventory_hostname in groups['bgws']
+
     - name: Configure eBGP redistribution
       cisco.nxos.nxos_bgp_address_family:
         config:
