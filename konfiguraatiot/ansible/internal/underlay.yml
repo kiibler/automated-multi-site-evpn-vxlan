@@ -23,7 +23,7 @@
         config:
           processes:
             - process_id: "UNDERLAY"
-              router_id: "{{ lo0.split('/')[0] }}"
+              router_id: "{{ lo0 }}"
               auto_cost:
                 reference_bandwidth: 100
                 unit: "Gbps"
