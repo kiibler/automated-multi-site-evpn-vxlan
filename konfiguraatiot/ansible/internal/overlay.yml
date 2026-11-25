@@ -123,6 +123,18 @@
         label: "int vlan{{ item.id }}"
       when: item.agw is not none
 
+- name: Configure server link for VTEPs
+  gather_facts: false
+  hosts: vteps
+  tasks:
+    - name: Configure L2 trunk
+      cisco.nxos.nxos_l2_interfaces:
+        config:
+          - name: Ethernet1/10
+            mode: trunk
+            trunk:
+              allowed_vlans: "{{ vlans | selectattr('agw') | map(attribute='id') | join(',') }}"
+
 - name: Configure NVE interface
   gather_facts: false
   hosts: nves
@@ -154,13 +166,16 @@
         label: "{{ item.vni }}"
       when: item.agw is none
 
-    - name: Configure Multi-site GW interface for BGWs
+- name: Configure multi-site settings for BGWs
+  gather_facts: false
+  hosts: bgws
+  tasks:
+    - name: Configure Multi-site GW interface
       cisco.nxos.nxos_vxlan_vtep:
         interface: nve1
         multisite_border_gateway_interface: loopback100
-      when: inventory_hostname in groups["bgws"]
 
-    - name: Configure L2VNI Multi-site replication for BGWs 
+    - name: Configure L2VNI Multi-site replication
       cisco.nxos.nxos_vxlan_vtep_vni:
         interface: nve1
         vni: "{{ item.vni }}"
@@ -168,11 +183,22 @@
       loop: "{{ vlans }}"
       loop_control:
         label: "{{ item.vni }}"
-      when: item.agw is not none and inventory_hostname in groups['bgws']
+      when: item.agw is not none
 
-- name: Configure BGP process
+- name: Query for site-internal neighbors
   gather_facts: false
   hosts: nves,spines
+  tasks:
+    - name: Run show ip ospf neighbors
+      cisco.nxos.nxos_command:
+        commands:
+          - show ip ospf neighbors | awk 'NR > 3 {print $1}'
+      register:
+        neighbors: _task.result.stdout[0].split('\n')
+
+- name: Configure iBGP peers for NVEs
+  gather_facts: false
+  hosts: nves
   tasks:
     - name: Configure iBGP RR peer template
       cisco.nxos.nxos_bgp_templates:
@@ -186,8 +212,23 @@
                 - afi: l2vpn
                   safi: evpn
                   send_community: both
-      when: inventory_hostname not in groups["spines"]
 
+    - name: Configure iBGP peers
+      cisco.nxos.nxos_bgp_global:
+        config:
+          as_number: "{{ asn }}"
+          router_id: "{{ lo0 }}"
+          log_neighbor_changes: true
+          neighbors:
+            - neighbor_address: "{{ item }}"
+              inherit:
+                peer: SPINE-RR
+      loop: "{{ neighbors }}"
+
+- name: Configure iBGP peers for SPINEs
+  gather_facts: false
+  hosts: spines
+  tasks:
     - name: Configure iBGP RR Client peer template
       cisco.nxos.nxos_bgp_templates:
         config:
@@ -201,45 +242,26 @@
                   safi: evpn
                   send_community: both
                   route_reflector_client: true
-      when: inventory_hostname in groups["spines"]
 
-    - name: Query for site-internal neighbors via show ip ospf neighbors
-      cisco.nxos.nxos_command:
-        commands:
-          - show ip ospf neighbors | awk 'NR > 3 {print $1}'
-      register:
-        neighbors: _task.result.stdout[0].split('\n')
-
-    - name: Configure iBGP overlay peers for NVEs
+    - name: Configure iBGP peers
       cisco.nxos.nxos_bgp_global:
         config:
           as_number: "{{ asn }}"
-          router_id: "{{ lo0.split('/')[0] }}"
-          log_neighbor_changes: true
-          neighbors:
-            - neighbor_address: "{{ item }}"
-              inherit:
-                peer: SPINE-RR
-      loop: "{{ neighbors }}"
-      when: inventory_hostname in groups["nves"]
-
-    - name: Configure iBGP peers for SPINEs 
-      cisco.nxos.nxos_bgp_global:
-        config:
-          as_number: "{{ asn }}"
-          router_id: "{{ lo0.split('/')[0] }}"
+          router_id: "{{ lo0 }}"
           log_neighbor_changes: true
           neighbors:
             - neighbor_address: "{{ item }}"
               inherit:
                 peer: LEAF-VTEP
       loop: "{{ neighbors }}"
-      when: inventory_hostname in groups["spines"]
 
 - name: Create checkpoint
   gather_facts: false
   hosts: nves,spines
   tasks:
     - name: Create checkpoint internal-overlay
-      cisco.nxos.nxos_rollback:
-        checkpoint_file: internal-overlay
+      cisco.nxos.nxos_command:
+        commands:
+          - "configure terminal"
+          - "checkpoint internal-overlay"
+          - "end"
