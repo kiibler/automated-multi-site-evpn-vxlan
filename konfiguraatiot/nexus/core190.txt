@@ -1,0 +1,113 @@
+! core190 Running Config
+!  
+hostname dc1-site0-core190
+!
+nv overlay evpn
+feature bgp
+feature nv overlay
+!
+route-map TAG permit 10
+  match tag 10 
+!
+route-map UNCHANGED permit 10
+  set ip next-hop unchanged
+!
+interface Ethernet1/1
+  description Link to dc1-site1-bgw160
+  no switchport
+  mtu 1550
+  mac-address 0045.ed10.0101
+  ip address 10.160.190.2/30 tag 10
+  no shutdown
+!
+interface Ethernet1/2
+  description Link to dc1-site1-bgw161
+  no switchport
+  mtu 1550
+  mac-address 0045.ed10.0102
+  ip address 10.161.190.2/30 tag 10
+  no shutdown
+!
+interface Ethernet1/3
+  description Link to dc1-site2-bgw163
+  no switchport
+  mtu 1550
+  mac-address 0045.ed10.0103
+  ip address 10.163.190.2/30 tag 10
+  no shutdown
+!
+interface Ethernet1/4
+  description Link to dc1-site2-bgw162
+  no switchport
+  mtu 1550
+  mac-address 0045.ed10.0104
+  ip address 10.162.190.2/30 tag 10
+  no shutdown
+!
+interface mgmt0
+  vrf member management
+  ip address 192.168.1.190/24
+!
+interface loopback0
+  description Router-Id
+  ip address 10.0.10.190/32 tag 10
+!
+router bgp 65010
+  router-id 10.0.10.190
+  log-neighbor-changes
+  address-family ipv4 unicast
+    redistribute direct route-map TAG
+  address-family l2vpn evpn
+    retain route-target all
+  neighbor 10.0.11.160
+    remote-as 65011
+    update-source loopback0
+    ebgp-multihop 2
+    address-family l2vpn evpn
+      send-community
+      send-community extended
+      route-map UNCHANGED out
+      rewrite-evpn-rt-asn
+  neighbor 10.0.11.161
+    remote-as 65011
+    update-source loopback0
+    ebgp-multihop 2
+    address-family l2vpn evpn
+      send-community
+      send-community extended
+      route-map UNCHANGED out
+      rewrite-evpn-rt-asn
+  neighbor 10.0.12.162
+    remote-as 65012
+    update-source loopback0
+    ebgp-multihop 2
+    address-family l2vpn evpn
+      send-community
+      send-community extended
+      route-map UNCHANGED out
+      rewrite-evpn-rt-asn
+  neighbor 10.0.12.163
+    remote-as 65012
+    update-source loopback0
+    ebgp-multihop 2
+    address-family l2vpn evpn
+      send-community
+      send-community extended
+      route-map UNCHANGED out
+      rewrite-evpn-rt-asn
+  neighbor 10.160.190.1
+    remote-as 65011
+    update-source Ethernet1/1
+    address-family ipv4 unicast
+  neighbor 10.161.190.1
+    remote-as 65011
+    update-source Ethernet1/2
+    address-family ipv4 unicast
+  neighbor 10.162.190.1
+    remote-as 65012
+    update-source Ethernet1/4
+    address-family ipv4 unicast
+  neighbor 10.163.190.1
+    remote-as 65012
+    update-source Ethernet1/3
+    address-family ipv4 unicast

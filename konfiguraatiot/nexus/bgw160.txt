@@ -1,0 +1,173 @@
+! bgw160 Running Config
+!  
+hostname dc1-site1-bgw160
+!
+nv overlay evpn
+feature ospf
+feature bgp
+feature interface-vlan
+feature vn-segment-vlan-based
+feature nv overlay
+!
+evpn multisite border-gateway 1
+  delay-restore time 300
+!
+vlan 10
+  name WEB-A-L2VNI
+  vn-segment 10010
+vlan 11
+  name APP-A-L2VNI
+  vn-segment 10011
+vlan 100
+  name TENANT-A-L3VNI
+  vn-segment 10100
+!
+route-map TAG permit 10
+  match tag 11
+!
+vrf context TENANT-A
+  vni 10100
+  rd auto
+  address-family ipv4 unicast
+    route-target both auto
+    route-target both auto evpn
+vrf context management
+!
+interface Vlan100
+  no shutdown
+  vrf member TENANT-A
+  ip forward
+!
+interface nve1
+  no shutdown
+  host-reachability protocol bgp
+  source-interface loopback1
+  multisite border-gateway interface loopback100
+  member vni 10010
+    multisite ingress-replication
+    ingress-replication protocol bgp
+  member vni 10011
+    multisite ingress-replication
+    ingress-replication protocol bgp
+  member vni 10100 associate-vrf
+!
+interface Ethernet1/1
+  description Link to dc1-site1-spine130
+  no switchport
+  mtu 1550
+  mac-address 0045.f410.0101
+  medium p2p
+  ip unnumbered loopback0
+  ip ospf network point-to-point
+  ip router ospf UNDERLAY area 0.0.0.0
+  no shutdown
+  evpn multisite fabric-tracking
+!
+interface Ethernet1/2
+  description Link to dc1-site1-spine131
+  no switchport
+  mtu 1550
+  mac-address 0045.f410.0102
+  medium p2p
+  ip unnumbered loopback0
+  ip ospf network point-to-point
+  ip router ospf UNDERLAY area 0.0.0.0
+  no shutdown
+  evpn multisite fabric-tracking
+!
+interface Ethernet1/3
+  description Link to dc1-site0-core190
+  no switchport
+  mtu 1550
+  mac-address 0045.f410.0103
+  medium p2p
+  ip address 10.160.190.1/30 tag 11
+  no shutdown
+  evpn multisite dci-tracking
+!
+interface Ethernet1/4
+  description Link to dc1-site0-core191
+  no switchport
+  mtu 1550
+  mac-address 0045.f410.0104
+  medium p2p
+  ip address 10.160.191.1/30 tag 11
+  no shutdown
+  evpn multisite dci-tracking
+!
+interface mgmt0
+  vrf member management
+  ip address 192.168.1.160/24
+!
+interface loopback0
+  description Router-Id
+  ip address 10.0.11.160/32 tag 11
+  ip router ospf UNDERLAY area 0.0.0.0
+!
+interface loopback1
+  description VTEP PIP
+  ip address 10.1.11.160/32 tag 11
+  ip router ospf UNDERLAY area 0.0.0.0
+!
+interface loopback100
+  description Multi-site VTEP VIP
+  ip address 10.100.11.160/32 tag 11
+  ip router ospf UNDERLAY area 0.0.0.0
+!
+router ospf UNDERLAY
+  router-id 10.0.11.160
+  log-adjacency-changes
+  auto-cost reference-bandwidth 100 Gbps
+!
+router bgp 65011
+  router-id 10.0.11.160
+  log-neighbor-changes
+  address-family ipv4 unicast
+    redistribute direct route-map TAG
+    maximum-paths 2
+  template peer SPINE-RR
+    remote-as 65011
+    update-source loopback0
+    address-family l2vpn evpn
+      send-community
+      send-community extended
+  neighbor 10.0.10.190
+    remote-as 65010
+    update-source loopback0
+    ebgp-multihop 2
+    peer-type fabric-external
+    address-family l2vpn evpn
+      send-community
+      send-community extended
+      rewrite-evpn-rt-asn
+  neighbor 10.0.10.191
+    remote-as 65010
+    update-source loopback0
+    ebgp-multihop 2
+    peer-type fabric-external
+    address-family l2vpn evpn
+      send-community
+      send-community extended
+      rewrite-evpn-rt-asn
+  neighbor 10.0.11.130
+    inherit peer SPINE-RR
+  neighbor 10.0.11.131
+    inherit peer SPINE-RR
+  neighbor 10.160.190.2
+    remote-as 65010
+    update-source Ethernet1/3
+    address-family ipv4 unicast
+  neighbor 10.160.191.2
+    remote-as 65010
+    update-source Ethernet1/4
+    address-family ipv4 unicast
+!
+evpn
+  vni 10010 l2
+    rd auto
+    route-target import auto
+    route-target export auto
+  vni 10011 l2
+    rd auto
+    route-target import auto
+    route-target export auto

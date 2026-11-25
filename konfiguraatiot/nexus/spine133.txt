@@ -1,0 +1,85 @@
+! spine133 Running Config
+!  
+hostname dc1-site2-spine133
+!
+nv overlay evpn
+feature ospf
+feature bgp
+feature nv overlay
+!
+interface Ethernet1/1
+  description Link to dc1-site2-vtep103
+  no switchport
+  mtu 1550
+  mac-address 0045.e410.0101
+  medium p2p
+  ip unnumbered loopback0
+  ip ospf network point-to-point
+  ip router ospf UNDERLAY area 0.0.0.0
+  no shutdown
+!
+interface Ethernet1/2
+  description Link to dc1-site2-vtep102
+  no switchport
+  mtu 1550
+  mac-address 0045.e410.0102
+  medium p2p
+  ip unnumbered loopback0
+  ip ospf network point-to-point
+  ip router ospf UNDERLAY area 0.0.0.0
+  no shutdown
+!
+interface Ethernet1/3
+  description Link to dc1-site2-bgw163
+  no switchport
+  mtu 1550
+  mac-address 0045.e410.0103
+  medium p2p
+  ip unnumbered loopback0
+  ip ospf network point-to-point
+  ip router ospf UNDERLAY area 0.0.0.0
+  no shutdown
+!
+interface Ethernet1/4
+  description Link to dc1-site2-bgw162
+  no switchport
+  mtu 1550
+  mac-address 0045.e410.0104
+  medium p2p
+  ip unnumbered loopback0
+  ip ospf network point-to-point
+  ip router ospf UNDERLAY area 0.0.0.0
+  no shutdown
+!
+interface mgmt0
+  vrf member management
+  ip address 192.168.1.133/24
+!
+interface loopback0
+  description Router-Id
+  ip address 10.0.12.133/32
+  ip router ospf UNDERLAY area 0.0.0.0
+!
+router ospf UNDERLAY
+  router-id 10.0.12.133
+  log-adjacency-changes
+  auto-cost reference-bandwidth 100 Gbps
+!
+router bgp 65012
+  router-id 10.0.12.133
+  log-neighbor-changes
+  template peer LEAF-VTEP
+    remote-as 65012
+    update-source loopback0
+    address-family l2vpn evpn
+      send-community
+      send-community extended
+      route-reflector-client
+  neighbor 10.0.12.102
+    inherit peer LEAF-VTEP
+  neighbor 10.0.12.103
+    inherit peer LEAF-VTEP
+  neighbor 10.0.12.162
+    inherit peer LEAF-VTEP
+  neighbor 10.0.12.163
+    inherit peer LEAF-VTEP
