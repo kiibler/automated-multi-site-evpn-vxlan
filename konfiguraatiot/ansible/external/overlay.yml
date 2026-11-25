@@ -17,10 +17,10 @@
       cisco.nxos.nxos_bgp_global:
         config:
           as_number: "{{ asn }}"
-          router_id: "{{ lo0.split('/')[0] }}"
+          router_id: "{{ lo0 }}"
           log_neighbor_changes: true
           neighbors:
-            - neighbor_address: "{{  hostvars[item.sysname.split('-')[-1]]['lo0'].split('/')[0] }}"
+            - neighbor_address: "{{  hostvars[item.sysname.split('-')[-1]]['lo0'] }}"
               remote_as: "{{ hostvars[item.sysname.split('-')[-1]]['asn'] }}"
               update_source: loopback0
               peer_type: "fabric-external"
@@ -35,7 +35,7 @@
         config:
           as_number: "{{ asn }}"
           neighbors:
-            - neighbor_address: "{{ hostvars[item.sysname.split('-')[-1]]['lo0'].split('/')[0] }}"
+            - neighbor_address: "{{ hostvars[item.sysname.split('-')[-1]]['lo0'] }}"
               address_family:
                 - afi: "l2vpn"
                   safi: "evpn"
@@ -78,10 +78,10 @@
       cisco.nxos.nxos_bgp_global:
         config:
           as_number: "{{ asn }}"
-          router_id: "{{ lo0.split('/')[0] }}"
+          router_id: "{{ lo0 }}"
           log_neighbor_changes: true
           neighbors:
-            - neighbor_address: "{{  hostvars[item.sysname.split('-')[-1]]['lo0'].split('/')[0] }}"
+            - neighbor_address: "{{  hostvars[item.sysname.split('-')[-1]]['lo0'] }}"
               remote_as: "{{ hostvars[item.sysname.split('-')[-1]]['asn'] }}"
               update_source: loopback0
               ebgp_multihop: 2
@@ -94,7 +94,7 @@
         config:
           as_number: "{{ asn }}"
           neighbors:
-            - neighbor_address: "{{ hostvars[item.sysname.split('-')[-1]]['lo0'].split('/')[0] }}"
+            - neighbor_address: "{{ hostvars[item.sysname.split('-')[-1]]['lo0'] }}"
               address_family:
                 - afi: "l2vpn"
                   safi: "evpn"
