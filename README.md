@@ -66,3 +66,7 @@ Datakeskuksen runkoverkon, eli Super Spine -tason laitteiden, eBGP **next-hop** 
 Laitteiden automaattiseen käyttöönottoon ja konfiguroimiseen luodut Ansible Playbookit löytyvät `konfiguraatiot/ansible/`-[kansiosta](https://github.com/kiibler/automated-multi-site-evpn-vxlan/tree/main/konfiguraatiot/ansible)
 
 Cisco Nexus 9000v -virtuaalikytkimien automaattisesti luodut konfiguraatiot löytyvät `konfiguraatiot/nexus/`-[kansiosta](https://github.com/kiibler/automated-multi-site-evpn-vxlan/tree/main/konfiguraatiot/nexus)
+
+## Validoinnit
+
+Verkon toimivuuden sekä virtuaalikoneiden yhteyksien validoinnit ja tulosteet löytyvät `validoinnit/`-[kansiosta](https://github.com/kiibler/automated-multi-site-evpn-vxlan/tree/main/validoinnit)
