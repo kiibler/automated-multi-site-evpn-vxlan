@@ -60,3 +60,7 @@ External overlay -verkko viimeistelee Multi-site EVPN VXLAN -konesaliverkon. Sen
 EVPN-reittejä mainostetaan ja sisällytetään reititys- ja MAC-osoite-pöytiin automaattisesti generoitujen `route-target`-arvojen avulla. Arvot ovat muotoa `ASN:VNI`, jossa `ASN` viittaa alueeseen ja `VNI` viittaa asiakaskohtaiseen L2/L3VNI-tunnisteeseen. Border Gateway -laitteilla on toinen tärkeä tehtävä. Jotta ulkoisten alueiden EVPN-reittipäivityksiä voidaan sisällyttää asiakaskohtaisiin reititys tai MAC-osoitepöytiin, tulee päivitysten `route-target`-kentän `ASN`-arvo muuttaa määränpäänä olevan alueen `ASN`-arvoksi.
 
 Datakeskuksen runkoverkon, eli Super Spine -tason laitteiden, eBGP **next-hop** ominaisuutta muutettiin siten, että EVPN-reittipäivitysten **next-hop**-osoitetta ei muuteta omaksi `loopback0`-osoitteeksi. Tämä tarkoittaa sitä, että tason laitteet toimivat ikään kuin **iBGP Route Reflector** -roolissa, jotta esimerkiksi alueen `1` EVPN-reittipäivitysten **next-hop**-osoitteena säilyy alueen Border Gateway -laitteen `loopback100`-osoite, kun päivitys saavuttaa alueen `2` Border Gateway -laitteen.
+
+## Konfiguraatiot
+
+Laitteiden automaattiseen käyttöönottoon ja konfiguroimiseen luodut Ansible Playbookit löytyvät `konfiguraatiot/ansible/`-[kansiosta](https://github.com/kiibler/automated-multi-site-evpn-vxlan/tree/main/konfiguraatiot/ansible)
