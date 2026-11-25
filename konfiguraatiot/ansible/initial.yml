@@ -2,13 +2,6 @@
   gather_facts: false
   hosts: datacenter
   tasks:
-    - name: Lower CDP refresh timer
-      cisco.nxos.nxos_command:
-        commands:
-          - "configure terminal"
-          - "cdp timer 5"
-          - "end"
-
     - name: Configure device hostame
       cisco.nxos.nxos_hostname:
         config:
@@ -31,6 +24,17 @@
   gather_facts: false
   hosts: datacenter
   tasks:
+    - name: Lower CDP refresh timer
+      cisco.nxos.nxos_command:
+        commands:
+          - "configure terminal"
+          - "cdp timer 5"
+          - "end"
+
+    - name: Wait for 15 sec for CDP neighbor entries to refresh
+      wait_for:
+        timeout: 15 # Aseta pidempi aikalisä, jos hostnimet eivät ehtineet päivittyä
+
     - name: Run show cdp neighbors
       cisco.nxos.nxos_command:
         commands:
@@ -87,11 +91,11 @@
         label: "{{ item.intf_id }}"
       when: "'core' not in item.sysname"
 
-- name: Configure site-external transit networks
+- name: Configure site-external transit networks for BGWs
   gather_facts: false
-  hosts: bgws,dc_core
+  hosts: bgws
   tasks:
-    - name: Configure IPv4 address for BGWs
+    - name: Configure IPv4 address
       cisco.nxos.nxos_command:
         commands:
           - "configure terminal"
@@ -101,9 +105,13 @@
       loop: "{{ neighbors }}"
       loop_control:
         label: "{{ item.intf_id }}"
-      when: "inventory_hostname in groups ['bgws'] and 'spine' not in item.sysname"
+      when: "'spine' not in item.sysname"
 
-    - name: Configure IPv4 address for COREs
+- name: Configure site-external transit networks for COREs
+  gather_facts: false
+  hosts: dc_core
+  tasks:
+    - name: Configure IPv4 address
       cisco.nxos.nxos_command:
         commands:
           - "configure terminal"
@@ -113,7 +121,6 @@
       loop: "{{ neighbors }}"
       loop_control:
         label: "{{ item.intf_id }}"
-      when: inventory_hostname in groups ['dc_core']
 
 - name: Configure loopback interfaces
   gather_facts: false
@@ -136,7 +143,7 @@
         config:
           - name: "{{ item }}"
             ipv4:
-              - address: "{{ lookup('vars', item) }}"
+              - address: "{{ lookup('vars', item) ~ '/32' }}"
       loop:
         - lo0
         - lo1
@@ -152,7 +159,7 @@
         commands:
           - "configure terminal"
           - "interface {{ item }}"
-          - "ip address {{ lookup('vars', item) }} tag {{ dc_id ~ site_id }}"
+          - "ip address {{ lookup('vars', item) ~ '/32' }} tag {{ dc_id ~ site_id }}"
           - "end"
       loop:
         - lo0
