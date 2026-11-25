@@ -45,7 +45,7 @@
       cisco.nxos.nxos_bgp_global:
         config:
           as_number: "{{ asn }}"
-          router_id: "{{ lo0.split('/')[0] }}"
+          router_id: "{{ lo0 }}"
           log_neighbor_changes: true
           neighbors:
             - neighbor_address: "{{ item.v4addr }}"
@@ -53,7 +53,7 @@
               update_source: "{{ item.intf_id }}"
       loop: "{{ neighbors }}"
       loop_control:
-        label: "{{ item.v4addr }}"
+        label: "{{ item.sysname }}"
       when: "'spine' not in item.sysname"
 
     - name: Enable eBGP neighbor IPv4 Unicast
@@ -67,7 +67,7 @@
                   safi: unicast
       loop: "{{ neighbors }}"
       loop_control:
-        label: "{{ item.v4addr }}"
+        label: "{{ item.sysname }}"
       when: "'spine' not in item.sysname"
 
     - name: Configure path settings for BGWs
