@@ -5,9 +5,9 @@ use_vars_plugins: true
 compose:
   ansible_host: "'192.168.' ~ lookup('vars', 'dc_id') ~ '.' ~ lookup('vars', 'device_id')"
   asn: "'650' ~ lookup('vars', 'dc_id') ~ lookup('vars', 'site_id')"
-  lo0: "'10.0.' ~ lookup('vars', 'dc_id') ~ lookup('vars', 'site_id') ~ '.' ~ lookup('vars', 'device_id') ~ '/32'"
-  lo1: "('10.1.' ~ lookup('vars', 'dc_id') ~ lookup('vars', 'site_id') ~ '.' ~ lookup('vars', 'device_id') ~ '/32') if lo1_desc is defined else none"
-  lo100: "('10.100.' ~ lookup('vars', 'dc_id') ~ lookup('vars', 'site_id') ~ '.' ~ lookup('vars', 'device_id') ~ '/32') if lo100_desc is defined else none"
+  lo0: "'10.0.' ~ lookup('vars', 'dc_id') ~ lookup('vars', 'site_id') ~ '.' ~ lookup('vars', 'device_id')"
+  lo1: "('10.1.' ~ lookup('vars', 'dc_id') ~ lookup('vars', 'site_id') ~ '.' ~ lookup('vars', 'device_id')) if lo1_desc is defined else none"
+  lo100: "('10.100.' ~ lookup('vars', 'dc_id') ~ lookup('vars', 'site_id') ~ '.' ~ lookup('vars', 'device_id')) if lo100_desc is defined else none"
 
 groups:
   site_1_nves: "'nves' in group_names and 'site_1' in group_names"
