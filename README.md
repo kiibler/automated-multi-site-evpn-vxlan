@@ -27,7 +27,7 @@ IPv4 osoitteet muodostettiin seuraavan taulukon mukaan:
 
 | Use | Prefix | 2nd Octet | 3rd Octet | 4th Octet |
 | :--- | :--- | :--- | :--- | :--- |
-| MGMT | `192.168.0.0/16` | - | DC-Id + Site-Id | Device-Id |
+| MGMT | `192.168.0.0/16` | - | DC-Id | Device-Id |
 | RID | `10.0.0.0/8` | 0 | DC-Id + Site-Id | Device-Id |
 | VTEP PIP | `10.0.0.0/8` | 1 | DC-Id + Site-Id | Device-Id |
 | Multi-site VIP | `10.0.0.0/8` | 100 | DC-Id + Site-Id | 1 |
